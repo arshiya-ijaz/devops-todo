@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Tasks</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui,sans-serif;background:#f5f5f3;min-height:100vh;padding:2rem 1rem}
+  .app{max-width:520px;margin:0 auto}
+  h1{font-size:22px;font-weight:500;margin-bottom:4px}
+  .subtitle{font-size:13px;color:#888;margin-bottom:1.5rem}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.5rem}
+  .stat{background:#eee;border-radius:10px;padding:12px 14px}
+  .stat-label{font-size:12px;color:#666;margin-bottom:4px}
+  .stat-value{font-size:20px;font-weight:500}
+  .input-card{background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:1rem;margin-bottom:1rem}
+  .input-row{display:flex;gap:8px;margin-bottom:10px}
+  .input-row input{flex:1;height:36px;border:1px solid #ddd;border-radius:8px;padding:0 12px;font-size:14px;outline:none}
+  .input-row input:focus{border-color:#534AB7}
+  .priority-row{display:flex;gap:6px}
+  .pri-btn{flex:1;padding:6px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:transparent;color:#666;cursor:pointer}
+  .pri-btn.active-low{background:#e1f5ee;border-color:#1D9E75;color:#085041}
+  .pri-btn.active-med{background:#faeeda;border-color:#BA7517;color:#633806}
+  .pri-btn.active-high{background:#fcebeb;border-color:#E24B4A;color:#791F1F}
+  .add-btn{width:100%;margin-top:10px;padding:9px;background:#534AB7;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
+  .add-btn:hover{opacity:.88}
+  .filters{display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap}
+  .f-btn{padding:5px 14px;font-size:13px;border:1px solid #ddd;border-radius:20px;background:transparent;color:#666;cursor:pointer}
+  .f-btn.active{background:#534AB7;border-color:#534AB7;color:#fff}
+  .todo-list{display:flex;flex-direction:column;gap:8px}
+  .todo-item{background:#fff;border:1px solid #e0e0e0;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:12px}
+  .todo-item.done{opacity:.5}
+  .check-btn{width:20px;height:20px;border-radius:50%;border:1.5px solid #ccc;background:transparent;cursor:pointer;flex-shrink:0}
+  .check-btn.checked{background:#534AB7;border-color:#534AB7}
+  .todo-text{flex:1;font-size:14px}
+  .todo-item.done .todo-text{text-decoration:line-through;color:#aaa}
+  .pri-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .dot-low{background:#1D9E75}.dot-med{background:#BA7517}.dot-high{background:#E24B4A}
+  .del-btn{width:28px;height:28px;border-radius:6px;border:1px solid #ddd;background:transparent;color:#aaa;cursor:pointer;font-size:14px}
+  .del-btn:hover{border-color:#E24B4A;color:#E24B4A}
+  .empty{text-align:center;padding:2rem;color:#aaa;font-size:14px}
+  .clear-btn{width:100%;margin-top:1rem;padding:8px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:transparent;color:#888;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>My tasks</h1>
+  <p class="subtitle">Stay on top of your day</p>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Total</div><div class="stat-value" id="s-total">0</div></div>
+    <div class="stat"><div class="stat-label">Done</div><div class="stat-value" id="s-done">0</div></div>
+    <div class="stat"><div class="stat-label">Pending</div><div class="stat-value" id="s-pending">0</div></div>
+  </div>
+
+  <div class="input-card">
+    <div class="input-row">
+      <input type="text" id="task-input" placeholder="What needs to be done?"/>
+    </div>
+    <div class="priority-row">
+      <button class="pri-btn active-low" data-p="low" onclick="setPri('low')">Low</button>
+      <button class="pri-btn" data-p="med" onclick="setPri('med')">Medium</button>
+      <button class="pri-btn" data-p="high" onclick="setPri('high')">High</button>
+    </div>
+    <button class="add-btn" onclick="addTodo()">Add task</button>
+  </div>
+
+  <div class="filters">
+    <button class="f-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="f-btn" onclick="setFilter('pending',this)">Pending</button>
+    <button class="f-btn" onclick="setFilter('done',this)">Done</button>
+    <button class="f-btn" onclick="setFilter('high',this)">High priority</button>
+  </div>
+
+  <div class="todo-list" id="list"></div>
+  <button class="clear-btn" onclick="clearDone()">Clear completed tasks</button>
+</div>
+
+<script>
+  let todos = [];
+  let pri = 'low';
+  let filter = 'all';
+
+  async function load() {
+    const r = await fetch('/todos');
+    todos = await r.json();
+    render();
+  }
+
+  function setPri(p) {
+    pri = p;
+    document.querySelectorAll('.pri-btn').forEach(b => {
+      b.className = 'pri-btn';
+      if (b.dataset.p === p) b.className = 'pri-btn active-' + p;
+    });
+  }
+
+  function setFilter(f, el) {
+    filter = f;
+    document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+    render();
+  }
+
+  async function addTodo() {
+    const val = document.getElementById('task-input').value.trim();
+    if (!val) return;
+    await fetch('/todos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: val, priority: pri, done: false })
+    });
+    document.getElementById('task-input').value = '';
+    load();
+  }
+
+  async function toggle(id) {
+    await fetch('/todos/' + id + '/toggle', { method: 'PATCH' });
+    load();
+  }
+
+  async function del(id) {
+    await fetch('/todos/' + id, { method: 'DELETE' });
+    load();
+  }
+
+  async function clearDone() {
+    await fetch('/todos/clear-done', { method: 'DELETE' });
+    load();
+  }
+
+  function render() {
+    let filtered = todos;
+    if (filter === 'pending') filtered = todos.filter(t => !t.done);
+    else if (filter === 'done') filtered = todos.filter(t => t.done);
+    else if (filter === 'high') filtered = todos.filter(t => t.priority === 'high');
+
+    const list = document.getElementById('list');
+    list.innerHTML = filtered.length === 0
+      ? '<div class="empty">No tasks here</div>'
+      : filtered.map(t => `
+        <div class="todo-item ${t.done ? 'done' : ''}">
+          <button class="check-btn ${t.done ? 'checked' : ''}" onclick="toggle('${t._id}')"></button>
+          <span class="todo-text">${t.task}</span>
+          <span class="pri-dot dot-${t.priority || 'low'}"></span>
+          <button class="del-btn" onclick="del('${t._id}')">&#x2715;</button>
+        </div>`).join('');
+
+    document.getElementById('s-total').textContent = todos.length;
+    document.getElementById('s-done').textContent = todos.filter(t => t.done).length;
+    document.getElementById('s-pending').textContent = todos.filter(t => !t.done).length;
+  }
+
+  document.getElementById('task-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') addTodo();
+  });
+
+  load();
+</script>
+</body>
+</html>
